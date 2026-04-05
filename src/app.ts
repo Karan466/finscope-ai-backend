@@ -4,6 +4,8 @@ import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
+import { Request, Response } from "express";
+
 
 import router from "./routes";
 import {
@@ -37,7 +39,8 @@ app.use(
   })
 );
 
-app.get("/", (_req, res) => {
+app.get("/", (_req: Request, res: Response) => {
+
   res.status(200).json({
     success: true,
     message: "FinScope AI Backend is running 🚀",
