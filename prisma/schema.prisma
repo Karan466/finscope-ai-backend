@@ -1,0 +1,133 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  ANALYST
+  VIEWER
+  APPROVER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum RecordType {
+  INCOME
+  EXPENSE
+}
+
+enum RecordStatus {
+  ACTIVE
+  PENDING_APPROVAL
+  REJECTED
+  DELETED
+}
+
+enum ApprovalDecision {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id                 String            @id @default(uuid())
+  name               String
+  email              String            @unique
+  password           String
+  role               Role
+  status             UserStatus        @default(ACTIVE)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  createdRecords     FinancialRecord[] @relation("CreatedBy")
+  updatedRecords     FinancialRecord[] @relation("UpdatedBy")
+  approvedRecords    FinancialRecord[] @relation("ApprovedBy")
+
+  approvalsRequested Approval[]        @relation("RequestedBy")
+  approvalsReviewed  Approval[]        @relation("ReviewedBy")
+
+  auditLogs          AuditLog[]
+  refreshTokens      RefreshToken[]
+}
+
+model FinancialRecord {
+  id           String       @id @default(uuid())
+  amount       Float
+  type         RecordType
+  category     String
+  date         DateTime
+  note         String?
+  status       RecordStatus @default(ACTIVE)
+  deletedAt    DateTime?
+
+  createdById  String
+  updatedById  String?
+  approvedById String?
+
+  createdBy    User         @relation("CreatedBy", fields: [createdById], references: [id])
+  updatedBy    User?        @relation("UpdatedBy", fields: [updatedById], references: [id])
+  approvedBy   User?        @relation("ApprovedBy", fields: [approvedById], references: [id])
+
+  approval     Approval?
+  anomalies    AnomalyReport[]
+
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+model Approval {
+  id            String           @id @default(uuid())
+  recordId      String           @unique
+  requestedById String
+  reviewedById  String?
+  decision      ApprovalDecision @default(PENDING)
+  comment       String?
+
+  record        FinancialRecord  @relation(fields: [recordId], references: [id])
+  requestedBy   User             @relation("RequestedBy", fields: [requestedById], references: [id])
+  reviewedBy    User?            @relation("ReviewedBy", fields: [reviewedById], references: [id])
+
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String
+  action     String
+  entityType String
+  entityId   String
+  oldValue   Json?
+  newValue   Json?
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id])
+}
+
+model RefreshToken {
+  id         String   @id @default(uuid())
+  userId     String
+  token      String   @unique
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id])
+}
+
+model AnomalyReport {
+  id         String          @id @default(uuid())
+  recordId   String
+  reason     String
+  severity   String
+  createdAt  DateTime        @default(now())
+
+  record     FinancialRecord @relation(fields: [recordId], references: [id])
+}
