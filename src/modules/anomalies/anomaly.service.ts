@@ -1,4 +1,5 @@
 import prisma from "../../config/db";
+import { env } from "../../config/env";
 
 const scanRecordForAnomaly = async (recordId: string) => {
   const record = await prisma.financialRecord.findUnique({
@@ -7,44 +8,54 @@ const scanRecordForAnomaly = async (recordId: string) => {
 
   if (!record) return null;
 
-  let isAnomalous = false;
   let reason = "";
-  let severity = "LOW";
+  let severity = "";
 
-  if (record.amount > 100000) {
-    isAnomalous = true;
-    reason = "Transaction amount unusually high";
-    severity = "HIGH";
-  } else if (
-    ["Unknown", "Misc", "Other"].includes(record.category) &&
-    record.amount > 20000
+  // Rule 1: Large expense beyond approval threshold
+  if (
+    record.type === "EXPENSE" &&
+    record.amount > env.APPROVAL_THRESHOLD
   ) {
-    isAnomalous = true;
-    reason = "Suspicious category with high amount";
-    severity = "MEDIUM";
-  } else if (record.type === "EXPENSE" && record.amount > 75000) {
-    isAnomalous = true;
-    reason = "Large expense flagged for review";
-    severity = "MEDIUM";
+    reason = "Expense exceeds approval threshold";
+    severity = "HIGH";
   }
 
-  if (!isAnomalous) {
-    return null;
+  // Rule 2: Extremely high transaction
+  if (record.amount >= env.APPROVAL_THRESHOLD * 3) {
+    reason = "Unusually high transaction detected";
+    severity = "CRITICAL";
   }
 
+  // Rule 3: Optional suspicious category
+  if (
+    ["Vendor Payment", "Equipment Purchase", "Cash Withdrawal"].includes(
+      record.category
+    ) &&
+    record.amount > env.APPROVAL_THRESHOLD
+  ) {
+    reason = `Suspicious spending pattern in ${record.category}`;
+    severity = "HIGH";
+  }
+
+  // If no anomaly found
+  if (!reason) return null;
+
+  // Prevent duplicate anomaly for same record
   const existing = await prisma.anomalyReport.findFirst({
     where: { recordId },
   });
 
   if (existing) return existing;
 
-  return prisma.anomalyReport.create({
+  const anomaly = await prisma.anomalyReport.create({
     data: {
-      recordId,
+      recordId: record.id,
       reason,
       severity,
     },
   });
+
+  return anomaly;
 };
 
 const getAllAnomalies = async () => {
