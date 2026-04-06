@@ -14,32 +14,30 @@ import { env } from "./config/env";
 
 const app = express();
 
+// ✅ Security middlewares
 app.use(helmet());
 
-const allowedOrigins = [
-  "http://localhost:5173",
-  env.CLIENT_URL,
-];
-
+// ✅ CORS (PRODUCTION READY)
 app.use(
   cors({
-    origin: function (origin, callback) {
-      if (!origin) return callback(null, true);
-
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      return callback(new Error("Not allowed by CORS"));
-    },
+    origin: [
+      "http://localhost:5173",
+      env.CLIENT_URL, // 🔥 from Render env
+    ],
     credentials: true,
   })
 );
 
+// ✅ Body parser
 app.use(express.json());
+
+// ✅ Cookies
 app.use(cookieParser());
+
+// ✅ Logger
 app.use(morgan("dev"));
 
+// ✅ Rate limiting
 app.use(
   rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -47,6 +45,7 @@ app.use(
   })
 );
 
+// ✅ Health check
 app.get("/", (_req: Request, res: Response) => {
   res.status(200).json({
     success: true,
@@ -54,8 +53,10 @@ app.get("/", (_req: Request, res: Response) => {
   });
 });
 
+// ✅ Routes
 app.use("/api/v1", router);
 
+// ✅ Error handlers
 app.use(notFoundHandler);
 app.use(globalErrorHandler);
 
