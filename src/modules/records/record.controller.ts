@@ -17,9 +17,7 @@ const createRecord = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getAllRecords = catchAsync(async (req: Request, res: Response) => {
-  const user = req.user;
-
-  const result = await RecordService.getAllRecords(user);
+  const result = await RecordService.getAllRecords(req.user, req.query);
 
   sendResponse(res, {
     statusCode: 200,

@@ -49,31 +49,30 @@ const createRecord = async (payload: CreateRecordPayload, user: any) => {
   return record;
 };
 
-const getAllRecords = async (user: any) => {
-  if (user.role === "ADMIN") {
-    return prisma.financialRecord.findMany({
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-          },
-        },
-        approval: true,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+const getAllRecords = async (user: any, query: any) => {
+  const { category } = query;
+
+  let filter: any = {};
+
+  if (user.role !== "ADMIN") {
+    filter.createdById = user.userId;
+  }
+
+  if (category && category !== "ALL") {
+    filter.category = category;
   }
 
   return prisma.financialRecord.findMany({
-    where: {
-      createdById: user.userId,
-    },
+    where: filter,
     include: {
+      createdBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+        },
+      },
       approval: true,
     },
     orderBy: {
@@ -81,7 +80,6 @@ const getAllRecords = async (user: any) => {
     },
   });
 };
-
 export const RecordService = {
   createRecord,
   getAllRecords,

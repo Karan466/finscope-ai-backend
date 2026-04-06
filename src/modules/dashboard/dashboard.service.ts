@@ -1,7 +1,7 @@
 import prisma from "../../config/db";
 
 const getDashboardStats = async (user: any, query: any) => {
-  const { type, startDate, endDate } = query;
+  const { type, startDate, endDate, category } = query;
 
   let filter: any = {
     status: "ACTIVE",
@@ -12,7 +12,12 @@ const getDashboardStats = async (user: any, query: any) => {
     filter.createdById = user.userId;
   }
 
-  // 📅 Date filtering
+  // Category filter
+  if (category && category !== "ALL") {
+    filter.category = category;
+  }
+
+  // Date filtering
   if (type === "monthly") {
     const now = new Date();
     filter.date = {
@@ -55,7 +60,6 @@ const getDashboardStats = async (user: any, query: any) => {
     }
   });
 
-  // Pending approvals
   const pendingApprovals = await prisma.approval.count({
     where: {
       decision: "PENDING",
@@ -65,7 +69,6 @@ const getDashboardStats = async (user: any, query: any) => {
     },
   });
 
-  // Anomalies
   const anomalyCount = await prisma.anomalyReport.count({
     where:
       user.role !== "ADMIN"
@@ -87,7 +90,7 @@ const getDashboardStats = async (user: any, query: any) => {
 };
 
 const getMonthlySummary = async (user: any, query: any) => {
-  const { type, year } = query;
+  const { type, year, startDate, endDate, category } = query;
 
   let filter: any = {
     status: "ACTIVE",
@@ -97,12 +100,25 @@ const getMonthlySummary = async (user: any, query: any) => {
     filter.createdById = user.userId;
   }
 
-  // optional year filter
+  // Category filter
+  if (category && category !== "ALL") {
+    filter.category = category;
+  }
+
+  // Year filter
   if (year) {
     const selectedYear = Number(year);
     filter.date = {
       gte: new Date(selectedYear, 0, 1),
       lte: new Date(selectedYear, 11, 31, 23, 59, 59),
+    };
+  }
+
+  // Custom range
+  if (startDate && endDate) {
+    filter.date = {
+      gte: new Date(startDate),
+      lte: new Date(endDate),
     };
   }
 
