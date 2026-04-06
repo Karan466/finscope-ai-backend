@@ -11,7 +11,7 @@ const scanRecordForAnomaly = async (recordId: string) => {
   let reason = "";
   let severity = "";
 
-  // Rule 1: Large expense beyond approval threshold
+  // Rule 1: Expense above approval threshold
   if (
     record.type === "EXPENSE" &&
     record.amount > env.APPROVAL_THRESHOLD
@@ -20,13 +20,13 @@ const scanRecordForAnomaly = async (recordId: string) => {
     severity = "HIGH";
   }
 
-  // Rule 2: Extremely high transaction
+  // Rule 2: Very large transaction
   if (record.amount >= env.APPROVAL_THRESHOLD * 3) {
     reason = "Unusually high transaction detected";
     severity = "CRITICAL";
   }
 
-  // Rule 3: Optional suspicious category
+  // Rule 3: Suspicious category
   if (
     ["Vendor Payment", "Equipment Purchase", "Cash Withdrawal"].includes(
       record.category
@@ -37,10 +37,8 @@ const scanRecordForAnomaly = async (recordId: string) => {
     severity = "HIGH";
   }
 
-  // If no anomaly found
   if (!reason) return null;
 
-  // Prevent duplicate anomaly for same record
   const existing = await prisma.anomalyReport.findFirst({
     where: { recordId },
   });

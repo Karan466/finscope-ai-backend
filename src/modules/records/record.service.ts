@@ -32,7 +32,8 @@ const createRecord = async (payload: CreateRecordPayload, user: any) => {
     },
   });
 
-    if (isLargeTransaction) {
+  // ✅ Create approval if threshold crossed
+  if (isLargeTransaction) {
     await prisma.approval.create({
       data: {
         recordId: record.id,
@@ -42,6 +43,7 @@ const createRecord = async (payload: CreateRecordPayload, user: any) => {
     });
   }
 
+  // ✅ Scan anomaly
   await AnomalyService.scanRecordForAnomaly(record.id);
 
   return record;
