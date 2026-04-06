@@ -3,8 +3,11 @@ import catchAsync from "../../shared/utils/catchAsync";
 import sendResponse from "../../shared/utils/sendResponse";
 import { DashboardService } from "./dashboard.service";
 
-const getStats = catchAsync(async (_req: Request, res: Response) => {
-  const result = await DashboardService.getDashboardStats();
+const getStats = catchAsync(async (req: Request, res: Response) => {
+  const result = await DashboardService.getDashboardStats(
+    req.user,
+    req.query
+  );
 
   sendResponse(res, {
     statusCode: 200,
@@ -14,8 +17,11 @@ const getStats = catchAsync(async (_req: Request, res: Response) => {
   });
 });
 
-const getMonthlySummary = catchAsync(async (_req: Request, res: Response) => {
-  const result = await DashboardService.getMonthlySummary();
+const getMonthlySummary = catchAsync(async (req: Request, res: Response) => {
+  const result = await DashboardService.getMonthlySummary(
+    req.user,
+    req.query
+  );
 
   sendResponse(res, {
     statusCode: 200,

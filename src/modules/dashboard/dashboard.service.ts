@@ -1,67 +1,144 @@
 import prisma from "../../config/db";
 
-const getDashboardStats = async () => {
-  const income = await prisma.financialRecord.aggregate({
-    _sum: { amount: true },
-    where: {
-      type: "INCOME",
-      status: "ACTIVE",
+const getDashboardStats = async (user: any, query: any) => {
+  const { type, startDate, endDate } = query;
+
+  let filter: any = {
+    status: "ACTIVE",
+  };
+
+  // Role-based filter
+  if (user.role !== "ADMIN") {
+    filter.createdById = user.userId;
+  }
+
+  // 📅 Date filtering
+  if (type === "monthly") {
+    const now = new Date();
+    filter.date = {
+      gte: new Date(now.getFullYear(), now.getMonth(), 1),
+      lte: new Date(),
+    };
+  }
+
+  if (type === "yearly") {
+    const now = new Date();
+    filter.date = {
+      gte: new Date(now.getFullYear(), 0, 1),
+      lte: new Date(),
+    };
+  }
+
+  if (startDate && endDate) {
+    filter.date = {
+      gte: new Date(startDate),
+      lte: new Date(endDate),
+    };
+  }
+
+  const records = await prisma.financialRecord.findMany({
+    where: filter,
+    select: {
+      amount: true,
+      type: true,
     },
   });
 
-  const expense = await prisma.financialRecord.aggregate({
-    _sum: { amount: true },
-    where: {
-      type: "EXPENSE",
-      status: "ACTIVE",
-    },
+  let totalIncome = 0;
+  let totalExpense = 0;
+
+  records.forEach((record) => {
+    if (record.type === "INCOME") {
+      totalIncome += record.amount;
+    } else {
+      totalExpense += record.amount;
+    }
   });
 
+  // Pending approvals
   const pendingApprovals = await prisma.approval.count({
     where: {
       decision: "PENDING",
+      ...(user.role !== "ADMIN" && {
+        requestedById: user.userId,
+      }),
     },
   });
 
-  const anomalyCount = await prisma.anomalyReport.count();
+  // Anomalies
+  const anomalyCount = await prisma.anomalyReport.count({
+    where:
+      user.role !== "ADMIN"
+        ? {
+            record: {
+              createdById: user.userId,
+            },
+          }
+        : {},
+  });
 
   return {
-    totalIncome: income._sum.amount || 0,
-    totalExpense: expense._sum.amount || 0,
-    netBalance:
-      (income._sum.amount || 0) - (expense._sum.amount || 0),
+    totalIncome,
+    totalExpense,
+    netBalance: totalIncome - totalExpense,
     pendingApprovals,
     anomalyCount,
   };
 };
 
-const getMonthlySummary = async () => {
+const getMonthlySummary = async (user: any, query: any) => {
+  const { type, year } = query;
+
+  let filter: any = {
+    status: "ACTIVE",
+  };
+
+  if (user.role !== "ADMIN") {
+    filter.createdById = user.userId;
+  }
+
+  // optional year filter
+  if (year) {
+    const selectedYear = Number(year);
+    filter.date = {
+      gte: new Date(selectedYear, 0, 1),
+      lte: new Date(selectedYear, 11, 31, 23, 59, 59),
+    };
+  }
+
   const records = await prisma.financialRecord.findMany({
-    where: {
-      status: "ACTIVE",
-    },
+    where: filter,
     select: {
       amount: true,
       type: true,
       date: true,
     },
+    orderBy: {
+      date: "asc",
+    },
   });
 
-  const summary: Record<string, any> = {};
+  const summary: Record<string, { income: number; expense: number }> = {};
 
   records.forEach((record) => {
-    const month = new Date(record.date).toLocaleString("default", {
-      month: "short",
-    });
+    let label = "";
 
-    if (!summary[month]) {
-      summary[month] = { income: 0, expense: 0 };
+    if (type === "yearly") {
+      label = new Date(record.date).getFullYear().toString();
+    } else {
+      label = new Date(record.date).toLocaleString("default", {
+        month: "short",
+      });
+    }
+
+    if (!summary[label]) {
+      summary[label] = { income: 0, expense: 0 };
     }
 
     if (record.type === "INCOME") {
-      summary[month].income += record.amount;
+      summary[label].income += record.amount;
     } else {
-      summary[month].expense += record.amount;
+      summary[label].expense += record.amount;
     }
   });
 
