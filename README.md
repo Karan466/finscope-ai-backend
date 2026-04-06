@@ -679,17 +679,17 @@ If you found this project useful, feel free to ⭐ the repo and fork it.
 
 
 
-# ✅ Before pasting — do these 2 quick edits
 
 
 
-Replace:
 
 
 
-```txt
 
-YOUR_USERNAME
+
+```karan466
+
+
 
 
 
